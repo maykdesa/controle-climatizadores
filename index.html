@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Climatizadores</title>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.5.1/html-docx.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #0c3c49;
+            color: white;
+            text-align: center;
+            padding: 3rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            font-size: 2.5rem;
+            text-transform: uppercase;
+        }
+        main {
+            width: 90%;
+            margin: 3rem auto;
+            max-width: 1200px;
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        .dashboard-container {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        .left-side, .right-side {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+        .card {
+            background: linear-gradient(145deg, #202a2f, #2f3940);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            color: #fff;
+        }
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+        }
+        .card h3 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            color: #00bcd4;
+        }
+        .card .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-top: 10px;
+            color: #ffffff;
+        }
+        .calendar-container {
+            background-color: #232c32;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+        }
+        .export-buttons {
+            display: flex;
+            justify-content: flex-start;
+            gap: 2rem;
+            margin-bottom: 20px;
+            margin-top: 20px;
+        }
+        .export-buttons button {
+            background-color: #00bcd4;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.3s;
+        }
+        .export-buttons button:hover {
+            background-color: #01878f;
+        }
+        .export-buttons button:active {
+            background-color: #016d74;
+        }
+        .add-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 70px;
+            height: 70px;
+            background-color: #00bcd4;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        .add-button:hover {
+            background-color: #01878f;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+        }
+        .add-button:active {
+            background-color: #016d74;
+        }
+        .content-wrapper {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            width: 100%;
+        }
+        .content-wrapper > .left-side, .content-wrapper > .right-side {
+            flex: 1;
+            margin-top: 2rem;
+        }
+        .content-wrapper .right-side {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        Controle de Climatizadores
+    </header>
+    <main>
+        <div class="content-wrapper">
+            <div class="left-side">
+                <div class="card">
+                    <h3>Climatizadores em Estoque</h3>
+                    <div class="stat-value" id="stockCount">Carregando...</div>
+                </div>
+                <div class="card">
+                    <h3>Modelos com Maior Quantidade em Estoque</h3>
+                    <ul id="topModelsList">
+                        <li>Carregando...</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="right-side">
+                <div class="card">
+                    <h3>Modelo com Maior Quantidade em Estoque</h3>
+                    <div class="stat-value" id="mostStockedModel">Carregando...</div>
+                </div>
+
+                <div class="card">
+                    <h3>Gráfico de Estoque</h3>
+                    <canvas id="stockChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <a href="cadastrar.html" class="add-button">+</a>
+
+    <script>
+
+
+
+
+        async function fetchClimatizadores() {
+            const response = await fetch('/climatizadores');
+            return response.json();
+        }
+
+        function renderChart(data) {
+            const ctx = document.getElementById('stockChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{
+                        label: 'Quantidade em Estoque',
+                        data: Object.values(data),
+                        backgroundColor: '#00bcd4',
+                        borderColor: '#01878f',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            ticks: { color: '#fff' },
+                            grid: { color: '#444' }
+                        },
+                        y: {
+                            ticks: { color: '#fff' },
+                            grid: { color: '#444' }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function updateStats() {
+            const climatizadores = await fetchClimatizadores();
+            const modelosCount = {
+                "EXAUSTOR BEX 30": 0,
+                "EXAUSTOR BEX 50": 0,
+                "BRIZZ MAX 16": 0,
+                "BRIZZ MAX 25": 0,
+                "BRIZZ MAX 33": 0,
+                "BRIZZ MAX 40": 0,
+                "BRIZZ MAX 50": 0,
+                "BRIZZ MAX 60": 0,
+                "BRIZZ MAX 70": 0,
+                "BRIZZ LITE 16": 0,
+                "BRIZZ LITE 25": 0,
+                "BRIZZ LITE 33": 0,
+                "BRIZZ LITE 40": 0,
+                "BRIZZ LITE 50": 0,
+                "BRIZZ LITE 60": 0,
+                "BRIZZ LITE 70": 0
+            };
+
+            climatizadores.forEach(climatizador => {
+                if (modelosCount.hasOwnProperty(climatizador.modelo)) {
+                    modelosCount[climatizador.modelo]++;
+                }
+            });
+
+            const totalStock = Object.values(modelosCount).reduce((acc, curr) => acc + curr, 0);
+            document.getElementById('stockCount').textContent = totalStock;
+
+            const mostStocked = Object.entries(modelosCount).reduce((a, b) => a[1] > b[1] ? a : b);
+            document.getElementById('mostStockedModel').textContent = `${mostStocked[0]} (${mostStocked[1]} unidades)`;
+
+            const topModels = Object.entries(modelosCount)
+                .filter(([modelo, quantidade]) => quantidade > 0)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+
+            const topModelsList = document.getElementById('topModelsList');
+            topModelsList.innerHTML = topModels.map(modelo => `<li>${modelo[0]}: ${modelo[1]} unidades</li>`).join('');
+
+            renderChart(modelosCount);
+        }
+
+        function exportToExcel() {
+            const data = [
+                ['Modelo', 'Quantidade'],
+                ...Object.entries(modelosCount).map(([modelo, quantidade]) => [modelo, quantidade])
+            ];
+
+            const table = document.createElement('table');
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                row.forEach(cell => {
+                    const td = document.createElement('td');
+                    td.textContent = cell;
+                    tr.appendChild(td);
+                });
+                table.appendChild(tr);
+            });
+
+            const workbook = XLSX.utils.table_to_book(table, { sheet: 'Estoque' });
+            XLSX.writeFile(workbook, 'estoque_climatizadores.xlsx');
+        }
+
+        function exportToWord() {
+            const data = document.getElementById('stockCount').innerText;
+            const docx = htmlDocx.asBlob(data);
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(docx);
+            link.download = 'estoque_climatizadores.docx';
+            link.click();
+        }
+
+        updateStats();
+    </script>
+</body>
+</html>

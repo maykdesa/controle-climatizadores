@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Estoque de Climatizadores</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.1/xlsx.full.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Cadastrar Climatizadores</h1>
+    </header>
+    <div class="container">
+        <a href="index.html" class="navigate-button">Voltar para o Dashboard</a>
+        <div class="form-container">
+            <h2 id="formTitle">Cadastrar Climatizador</h2>
+            <form id="climatizadorForm">
+                <label for="modelo">Modelo</label>
+                <select id="modelo" required>
+                    <option value="EXAUSTOR BEX 30">EXAUSTOR BEX 30</option>
+                    <option value="EXAUSTOR BEX 50">EXAUSTOR BEX 50</option>
+                    <option value="BRIZZ MAX 16">BRIZZ MAX 16</option>
+                    <option value="BRIZZ MAX 25">BRIZZ MAX 25</option>
+                    <option value="BRIZZ MAX 33">BRIZZ MAX 33</option>
+                    <option value="BRIZZ MAX 40">BRIZZ MAX 40</option>
+                    <option value="BRIZZ MAX 50">BRIZZ MAX 50</option>
+                    <option value="BRIZZ MAX 60">BRIZZ MAX 60</option>
+                    <option value="BRIZZ MAX 70">BRIZZ MAX 70</option>
+                    <option value="BRIZZ LITE 16">BRIZZ LITE 16</option>
+                    <option value="BRIZZ LITE 25">BRIZZ LITE 25</option>
+                    <option value="BRIZZ LITE 33">BRIZZ LITE 33</option>
+                    <option value="BRIZZ LITE 40">BRIZZ LITE 40</option>
+                    <option value="BRIZZ LITE 50">BRIZZ LITE 50</option>
+                    <option value="BRIZZ LITE 60">BRIZZ LITE 60</option>
+                    <option value="BRIZZ LITE 70">BRIZZ LITE 70</option>
+                </select>
+                <label for="codigo">Código</label>
+                <input type="text" id="codigo" required>
+                <label for="notaFiscal">Nota Fiscal</label>
+                <input type="text" id="notaFiscal" required>
+                <label for="descricao">Descrição</label>
+                <input type="text" id="descricao" required>
+                <label for="status">Status</label>
+                <select id="status" required>
+                    <option value="Testado">Testado</option>
+                    <option value="Não Testado">Não Testado</option>
+                </select>
+                <button type="submit">Cadastrar</button>
+            </form>
+            <div class="export-buttons">
+                <button id="exportExcel">Exportar para Excel</button>
+                <button id="exportDoc">Exportar para Word</button>
+            </div>
+        </div>
+        <div class="list-container">
+            <h2>Lista de Climatizadores</h2>
+            <table id="climatizadorTable">
+                <thead>
+                    <tr>
+                        <th>Modelo</th>
+                        <th>Código</th>
+                        <th>Nota Fiscal</th>
+                        <th>Descrição</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        const form = document.getElementById('climatizadorForm');
+        const tableBody = document.querySelector('#climatizadorTable tbody');
+
+        async function fetchClimatizadores() {
+            const response = await fetch('http://localhost:3001/climatizadores');
+            const climatizadores = await response.json();
+            renderTable(climatizadores);
+        }
+
+        function renderTable(climatizadores) {
+            tableBody.innerHTML = '';
+            climatizadores.forEach((climatizador) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${climatizador.modelo}</td>
+                    <td>${climatizador.codigo}</td>
+                    <td>${climatizador.notaFiscal}</td>
+                    <td>${climatizador.descricao}</td>
+                    <td class="${climatizador.status === 'Testado' ? 'status-testado' : 'status-nao-testado'}">
+                        ${climatizador.status}
+                    </td>
+                    <td>
+                        <button onclick="deleteClimatizador('${climatizador.codigo}')">Excluir</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const codigo = document.getElementById('codigo').value;
+            const climatizadores = await fetch('http://localhost:3001/climatizadores').then(res => res.json());
+            const isCodigoExistente = climatizadores.some(clim => clim.codigo === codigo);
+
+            if (isCodigoExistente) {
+                alert('Código já existente! Por favor, insira um código único.');
+                return;
+            }
+
+            const climatizador = {
+                modelo: document.getElementById('modelo').value,
+                codigo,
+                notaFiscal: document.getElementById('notaFiscal').value,
+                descricao: document.getElementById('descricao').value,
+                status: document.getElementById('status').value
+            };
+
+            await fetch('http://localhost:3001/climatizadores', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(climatizador)
+            });
+
+            fetchClimatizadores();
+            form.reset();
+        });
+
+        async function deleteClimatizador(codigo) {
+            await fetch(`http://localhost:3001/climatizadores/${codigo}`, {
+                method: 'DELETE'
+            });
+            fetchClimatizadores();
+        }
+
+        // Função para exportar para Excel
+        document.getElementById('exportExcel').addEventListener('click', async () => {
+            const response = await fetch('http://localhost:3001/climatizadores');
+            const climatizadores = await response.json();
+
+            const ws = XLSX.utils.json_to_sheet(climatizadores);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Climatizadores");
+
+            XLSX.writeFile(wb, 'estoque_climatizadores.xlsx');
+        });
+
+        // Função para exportar para Word
+        document.getElementById('exportDoc').addEventListener('click', async () => {
+            const response = await fetch('http://localhost:3001/climatizadores');
+            const climatizadores = await response.json();
+
+            const docContent = `
+                <html xmlns:w="urn:schemas-microsoft-com:office:word">
+                    <head>
+                        <style>
+                            table {border-collapse: collapse; width: 100%;}
+                            th, td {border: 1px solid black; padding: 8px; text-align: left;}
+                            th {background-color: #f2f2f2;}
+                        </style>
+                    </head>
+                    <body>
+                        <h2>Lista de Climatizadores</h2>
+                        <table>
+                            <tr>
+                                <th>Modelo</th>
+                                <th>Código</th>
+                                <th>Nota Fiscal</th>
+                                <th>Descrição</th>
+                                <th>Status</th>
+                            </tr>
+                            ${climatizadores.map(clim => `
+                                <tr>
+                                    <td>${clim.modelo}</td>
+                                    <td>${clim.codigo}</td>
+                                    <td>${clim.notaFiscal}</td>
+                                    <td>${clim.descricao}</td>
+                                    <td>${clim.status}</td>
+                                </tr>
+                            `).join('')}
+                        </table>
+                    </body>
+                </html>
+            `;
+
+            const blob = new Blob([docContent], { type: 'application/msword' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'estoque_climatizadores.doc';
+            link.click();
+        });
+
+  
+
+        fetchClimatizadores();
+    </script>
+</body>
+</html>
